@@ -1,0 +1,65 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: miobook
+      MYSQL_USER: KARBAR
+      MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/mysql_root_password
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - db_network
+      - miobook_network
+    secrets:
+      - mysql_password
+      - mysql_root_password
+
+  miobook-server:
+    image: mmdsour/miobook-server:latest
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/miobook
+      SPRING_DATASOURCE_USERNAME: KARBAR
+      # SPRING_DATASOURCE_PASSWORD_FILE: /run/secrets/mysql_password
+      GOOGLE_REDIRECT_URI: http://localhost:3000/api/oauth2/callback/google
+    ports:
+      - "5000:8080"
+    networks:
+      - miobook_network
+    depends_on:
+      - mysql
+    secrets:
+      - mysql_password
+    entrypoint: >
+      sh -c "
+      export SPRING_DATASOURCE_PASSWORD=$(cat /run/secrets/mysql_password) &&
+      exec java -jar web-api-1.0-SNAPSHOT.jar
+      "
+
+  miobook-client:
+    image: mmdsour/miobook-client:latest
+    environment:
+      API_BACKEND: miobook-server:8080
+    ports:
+      - "3000:80"
+    networks:
+      - miobook_network
+    depends_on:
+      - miobook-server
+
+secrets:
+  mysql_password:
+    file: ./secrets/mysql_password.txt
+  mysql_root_password:
+    file: ./secrets/mysql_root_password.txt
+
+networks:
+  miobook_network:
+    driver: bridge
+  db_network:
+    driver: bridge
+
+volumes:
+  mysql-data:

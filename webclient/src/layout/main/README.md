@@ -1,0 +1,1 @@
+All components of the main layout should wrap with the main tag.
